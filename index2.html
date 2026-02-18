@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TIC TAC TOE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #06080f;
+    --surface: #0d1117;
+    --x-color: #00f5ff;
+    --o-color: #ff2d78;
+    --grid: rgba(255,255,255,0.07);
+    --text: #e8eaf0;
+    --muted: #3a3f52;
+    --font-main: 'Orbitron', monospace;
+    --font-body: 'Rajdhani', sans-serif;
+    --glow-x: 0 0 20px rgba(0,245,255,0.6), 0 0 60px rgba(0,245,255,0.2);
+    --glow-o: 0 0 20px rgba(255,45,120,0.6), 0 0 60px rgba(255,45,120,0.2);
+  }
+
+  html {
+    overflow-y: auto;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem 2rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /* Animated scanlines */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 100;
+  }
+
+  /* Ambient glow blobs */
+  body::after {
+    content: '';
+    position: fixed;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(0,245,255,0.04) 0%, transparent 70%);
+    top: -100px; left: -100px;
+    pointer-events: none;
+  }
+
+  .blob2 {
+    position: fixed;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(255,45,120,0.05) 0%, transparent 70%);
+    bottom: -80px; right: -80px;
+    pointer-events: none;
+  }
+
+  /* Title */
+  .title-block {
+    text-align: center;
+    margin-bottom: 1rem;
+    animation: fadeDown 0.6s ease both;
+  }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .title {
+    font-family: var(--font-main);
+    font-size: clamp(1.2rem, 5vw, 2rem);
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    background: linear-gradient(135deg, var(--x-color), var(--o-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    font-size: 0.7rem;
+    letter-spacing: 0.5em;
+    color: var(--muted);
+    margin-top: 0.25rem;
+    font-family: var(--font-main);
+    font-weight: 400;
+  }
+
+  /* Mode selector */
+  .mode-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    animation: fadeDown 0.6s 0.1s ease both;
+  }
+
+  .mode-btn {
+    background: transparent;
+    border: 1px solid var(--muted);
+    color: var(--muted);
+    font-family: var(--font-main);
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .mode-btn.active {
+    border-color: var(--x-color);
+    color: var(--x-color);
+    box-shadow: 0 0 12px rgba(0,245,255,0.3);
+    background: rgba(0,245,255,0.05);
+  }
+
+  .mode-btn:hover:not(.active) {
+    border-color: rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.5);
+  }
+
+  /* Status bar */
+  .status-bar {
+    font-family: var(--font-main);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-align: center;
+    height: 1.5rem;
+    margin-bottom: 0.75rem;
+    transition: all 0.3s;
+    animation: fadeDown 0.6s 0.15s ease both;
+  }
+
+  .status-bar.x-turn { color: var(--x-color); text-shadow: var(--glow-x); }
+  .status-bar.o-turn { color: var(--o-color); text-shadow: var(--glow-o); }
+  .status-bar.draw { color: #888; }
+
+  /* Score board */
+  .scoreboard {
+    display: flex;
+    gap: 1px;
+    margin-bottom: 1rem;
+    width: 100%;
+    max-width: 380px;
+    animation: fadeDown 0.6s 0.2s ease both;
+  }
+
+  .score-card {
+    flex: 1;
+    padding: 0.75rem 0.5rem;
+    background: var(--surface);
+    text-align: center;
+    border: 1px solid var(--muted);
+    position: relative;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .score-card.active-x { border-color: var(--x-color); box-shadow: inset 0 0 20px rgba(0,245,255,0.05); }
+  .score-card.active-o { border-color: var(--o-color); box-shadow: inset 0 0 20px rgba(255,45,120,0.05); }
+
+  .score-label {
+    font-family: var(--font-main);
+    font-size: 0.45rem;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+
+  .score-player {
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  .score-x .score-player { color: var(--x-color); }
+  .score-o .score-player { color: var(--o-color); }
+  .score-draw .score-player { color: var(--muted); }
+
+  .score-num {
+    font-family: var(--font-main);
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: var(--text);
+  }
+
+  /* Game board */
+  .board-wrapper {
+    position: relative;
+    animation: fadeDown 0.6s 0.25s ease both;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    background: var(--muted);
+    border: 1px solid var(--muted);
+    width: min(75vw, 300px);
+    height: min(75vw, 300px);
+  }
+
+  .cell {
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: var(--font-main);
+    font-size: clamp(2rem, 8vw, 4rem);
+    font-weight: 900;
+    transition: background 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .cell:hover:not(.taken)::before { opacity: 0.04; }
+  .cell.taken { cursor: default; }
+
+  .cell .mark {
+    position: relative;
+    z-index: 1;
+    opacity: 0;
+    transform: scale(0.3) rotate(-20deg);
+    transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .cell.placed .mark {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+
+  .cell.x-cell { color: var(--x-color); }
+  .cell.o-cell { color: var(--o-color); }
+
+  .cell.winner-cell {
+    animation: winPulse 0.6s ease both;
+  }
+
+  @keyframes winPulse {
+    0% { background: var(--surface); }
+    50% { background: rgba(255,255,255,0.08); }
+    100% { background: var(--surface); }
+  }
+
+  /* Win line overlay */
+  .win-line {
+    position: absolute;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+    transform-origin: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s 0.1s;
+    height: 3px;
+    border-radius: 2px;
+    z-index: 10;
+  }
+  .win-line.visible { opacity: 1; }
+
+  /* Buttons row */
+  .btn-row {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    animation: fadeDown 0.6s 0.3s ease both;
+  }
+
+  .action-btn {
+    background: transparent;
+    border: 1px solid var(--muted);
+    color: var(--muted);
+    font-family: var(--font-main);
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    padding: 0.65rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .action-btn:hover {
+    border-color: var(--x-color);
+    color: var(--x-color);
+    box-shadow: 0 0 12px rgba(0,245,255,0.2);
+  }
+
+  .action-btn.primary {
+    border-color: rgba(0,245,255,0.4);
+    color: var(--x-color);
+  }
+  .action-btn.primary:hover {
+    background: rgba(0,245,255,0.06);
+    box-shadow: 0 0 20px rgba(0,245,255,0.3);
+  }
+
+  /* Hover preview */
+  .cell:not(.taken):hover .mark-preview {
+    display: block;
+  }
+  .mark-preview {
+    display: none;
+    opacity: 0.2;
+    font-family: var(--font-main);
+    font-weight: 900;
+    font-size: clamp(2rem, 8vw, 4rem);
+    position: absolute;
+    z-index: 1;
+  }
+
+  /* AI thinking indicator */
+  .thinking {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6,8,15,0.7);
+    z-index: 20;
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    font-family: var(--font-main);
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    color: var(--o-color);
+    text-shadow: var(--glow-o);
+  }
+  .thinking.show { opacity: 1; pointer-events: all; }
+
+  .thinking-dots::after {
+    content: '...';
+    animation: dots 1s infinite;
+  }
+  @keyframes dots {
+    0%,100% { content: '.'; }
+    33% { content: '..'; }
+    66% { content: '...'; }
+  }
+</style>
+</head>
+<body>
+<div class="blob2"></div>
+
+<div class="title-block">
+  <div class="title">TIC · TAC · TOE</div>
+  <div class="subtitle">ARCADE EDITION</div>
+</div>
+
+<div class="mode-row">
+  <button class="mode-btn active" id="modeHuman" onclick="setMode('human')">2 PLAYERS</button>
+  <button class="mode-btn" id="modeAI" onclick="setMode('ai')">VS AI</button>
+</div>
+
+<div class="scoreboard">
+  <div class="score-card score-x" id="scoreCardX">
+    <div class="score-label">PLAYER</div>
+    <div class="score-player">X</div>
+    <div class="score-num" id="scoreX">0</div>
+  </div>
+  <div class="score-card score-draw">
+    <div class="score-label">DRAWS</div>
+    <div class="score-player">—</div>
+    <div class="score-num" id="scoreDraw">0</div>
+  </div>
+  <div class="score-card score-o" id="scoreCardO">
+    <div class="score-label" id="oLabel">PLAYER</div>
+    <div class="score-player">O</div>
+    <div class="score-num" id="scoreO">0</div>
+  </div>
+</div>
+
+<div class="status-bar x-turn" id="status">X'S TURN</div>
+
+<div class="board-wrapper">
+  <div class="board" id="board"></div>
+  <div class="thinking" id="thinking">AI THINKING<span class="thinking-dots"></span></div>
+  <div class="win-line" id="winLine"></div>
+</div>
+
+<div class="btn-row">
+  <button class="action-btn primary" onclick="newGame()">NEW GAME</button>
+  <button class="action-btn" onclick="resetScores()">RESET SCORES</button>
+</div>
+
+<script>
+  const WINNING_COMBOS = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  let board = Array(9).fill(null);
+  let currentPlayer = 'X';
+  let gameOver = false;
+  let mode = 'human';
+  let scores = { X: 0, O: 0, draw: 0 };
+
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const thinkingEl = document.getElementById('thinking');
+  const winLineEl = document.getElementById('winLine');
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('modeHuman').classList.toggle('active', m === 'human');
+    document.getElementById('modeAI').classList.toggle('active', m === 'ai');
+    document.getElementById('oLabel').textContent = m === 'ai' ? 'AI' : 'PLAYER';
+    newGame();
+  }
+
+  function buildBoard() {
+    boardEl.innerHTML = '';
+    board.forEach((val, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.i = i;
+
+      if (val) {
+        cell.classList.add('taken', `${val.toLowerCase()}-cell`);
+        setTimeout(() => cell.classList.add('placed'), 10);
+        const mark = document.createElement('span');
+        mark.className = 'mark';
+        mark.textContent = val;
+        cell.appendChild(mark);
+      } else if (!gameOver) {
+        // Hover preview
+        const preview = document.createElement('span');
+        preview.className = 'mark-preview';
+        preview.style.color = currentPlayer === 'X' ? 'var(--x-color)' : 'var(--o-color)';
+        preview.textContent = currentPlayer;
+        cell.appendChild(preview);
+        cell.addEventListener('click', () => handleClick(i));
+      }
+
+      boardEl.appendChild(cell);
+    });
+  }
+
+  function handleClick(i) {
+    if (board[i] || gameOver) return;
+    if (mode === 'ai' && currentPlayer === 'O') return;
+    makeMove(i);
+    if (mode === 'ai' && !gameOver) {
+      setTimeout(aiMove, 400);
+    }
+  }
+
+  function makeMove(i) {
+    board[i] = currentPlayer;
+    
+    // Animate placed cell
+    buildBoard();
+    const cell = boardEl.children[i];
+    cell.classList.add('placed');
+
+    const win = checkWin();
+    if (win) {
+      endGame(currentPlayer, win);
+    } else if (board.every(Boolean)) {
+      endGame(null);
+    } else {
+      currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+      updateStatus();
+    }
+  }
+
+  function aiMove() {
+    thinkingEl.classList.add('show');
+    setTimeout(() => {
+      const move = getBestMove();
+      thinkingEl.classList.remove('show');
+      makeMove(move);
+    }, 350);
+  }
+
+  function getBestMove() {
+    // Try to win
+    for (let i = 0; i < 9; i++) {
+      if (!board[i]) {
+        board[i] = 'O';
+        if (checkWin()) { board[i] = null; return i; }
+        board[i] = null;
+      }
+    }
+    // Block X
+    for (let i = 0; i < 9; i++) {
+      if (!board[i]) {
+        board[i] = 'X';
+        if (checkWin()) { board[i] = null; return i; }
+        board[i] = null;
+      }
+    }
+    // Center
+    if (!board[4]) return 4;
+    // Corners
+    const corners = [0,2,6,8].filter(c => !board[c]);
+    if (corners.length) return corners[Math.floor(Math.random() * corners.length)];
+    // Any
+    const open = board.map((v,i) => v ? null : i).filter(i => i !== null);
+    return open[Math.floor(Math.random() * open.length)];
+  }
+
+  function checkWin() {
+    for (const combo of WINNING_COMBOS) {
+      const [a,b,c] = combo;
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) return combo;
+    }
+    return null;
+  }
+
+  function endGame(winner, combo) {
+    gameOver = true;
+    if (winner) {
+      scores[winner]++;
+      updateScores();
+
+      // Highlight winner cells
+      combo.forEach(i => {
+        boardEl.children[i].classList.add('winner-cell');
+      });
+
+      // Draw win line
+      drawWinLine(combo);
+
+      statusEl.textContent = winner === 'X' ? 'X WINS!' : (mode === 'ai' ? 'AI WINS!' : 'O WINS!');
+      statusEl.className = `status-bar ${winner.toLowerCase()}-turn`;
+    } else {
+      scores.draw++;
+      updateScores();
+      statusEl.textContent = 'DRAW!';
+      statusEl.className = 'status-bar draw';
+    }
+    buildBoard();
+  }
+
+  function drawWinLine(combo) {
+    const boardRect = boardEl.getBoundingClientRect();
+    const wrapRect = boardEl.parentElement.getBoundingClientRect();
+
+    const cellSize = boardRect.width / 3;
+    const gap = 3;
+
+    const getCenter = (idx) => ({
+      x: (idx % 3) * (cellSize + gap) + cellSize / 2,
+      y: Math.floor(idx / 3) * (cellSize + gap) + cellSize / 2,
+    });
+
+    const a = getCenter(combo[0]);
+    const b = getCenter(combo[2]);
+
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+    const midX = (a.x + b.x) / 2;
+    const midY = (a.y + b.y) / 2;
+
+    winLineEl.style.width = `${len}px`;
+    winLineEl.style.left = `${midX - len/2}px`;
+    winLineEl.style.top = `${midY}px`;
+    winLineEl.style.transform = `rotate(${angle}deg)`;
+
+    // Color based on winner
+    const color = currentPlayer === 'X' ? 'var(--x-color)' : 'var(--o-color)';
+    winLineEl.style.background = `linear-gradient(90deg, transparent, ${color}, transparent)`;
+    winLineEl.style.boxShadow = currentPlayer === 'X' ? '0 0 10px rgba(0,245,255,0.8)' : '0 0 10px rgba(255,45,120,0.8)';
+
+    setTimeout(() => winLineEl.classList.add('visible'), 50);
+  }
+
+  function updateStatus() {
+    const isAiTurn = mode === 'ai' && currentPlayer === 'O';
+    statusEl.textContent = isAiTurn ? "AI'S TURN" : `${currentPlayer}'S TURN`;
+    statusEl.className = `status-bar ${currentPlayer.toLowerCase()}-turn`;
+
+    // Update active score card
+    document.getElementById('scoreCardX').classList.toggle('active-x', currentPlayer === 'X');
+    document.getElementById('scoreCardO').classList.toggle('active-o', currentPlayer === 'O');
+  }
+
+  function updateScores() {
+    document.getElementById('scoreX').textContent = scores.X;
+    document.getElementById('scoreO').textContent = scores.O;
+    document.getElementById('scoreDraw').textContent = scores.draw;
+  }
+
+  function newGame() {
+    board = Array(9).fill(null);
+    currentPlayer = 'X';
+    gameOver = false;
+    winLineEl.classList.remove('visible');
+    document.getElementById('scoreCardX').classList.remove('active-x');
+    document.getElementById('scoreCardO').classList.remove('active-o');
+    thinkingEl.classList.remove('show');
+    updateStatus();
+    buildBoard();
+  }
+
+  function resetScores() {
+    scores = { X: 0, O: 0, draw: 0 };
+    updateScores();
+    newGame();
+  }
+
+  // Init
+  buildBoard();
+  updateStatus();
+</script>
+</body>
+</html>
