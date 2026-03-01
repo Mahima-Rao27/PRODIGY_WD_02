@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STOPWATCH</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;600;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --panel: #111;
+    --border: #2a2a2a;
+    --accent: #e8ff00;
+    --accent2: #ff4d00;
+    --text: #f0f0f0;
+    --muted: #555;
+    --mono: 'Share Tech Mono', monospace;
+    --display: 'Barlow Condensed', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--display);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    overflow: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(232,255,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,0,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .wrapper {
+    width: 100%;
+    max-width: 540px;
+    position: relative;
+  }
+
+  /* Header label */
+  .label-tag {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 0.65rem;
+    letter-spacing: 0.4em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .label-tag::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Main display panel */
+  .display-panel {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    padding: 2.5rem 2rem 2rem;
+    position: relative;
+    margin-bottom: 1px;
+  }
+
+  .display-panel::before {
+    content: 'MODEL SW-01';
+    position: absolute;
+    top: 0.75rem;
+    right: 1rem;
+    font-family: var(--mono);
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+  }
+
+  /* Indicator light */
+  .indicator {
+    position: absolute;
+    top: 0.85rem;
+    left: 1rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.2s;
+  }
+  .indicator.running {
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent), 0 0 20px rgba(232,255,0,0.3);
+    animation: blink 1s infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Time display */
+  .time-display {
+    font-family: var(--mono);
+    font-size: clamp(3.5rem, 12vw, 5.5rem);
+    letter-spacing: 0.05em;
+    line-height: 1;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 0.5rem;
+    transition: color 0.2s;
+  }
+  .time-display.running {
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(232,255,0,0.2);
+  }
+
+  .ms-display {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.1em;
+  }
+  .ms-display.running { color: rgba(232,255,0,0.5); }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    margin-top: 2rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+  }
+  .stat {
+    text-align: center;
+    padding: 0 0.5rem;
+  }
+  .stat:not(:last-child) {
+    border-right: 1px solid var(--border);
+  }
+  .stat-label {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.55rem;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+  }
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+
+  /* Controls */
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    margin-bottom: 1px;
+  }
+
+  .btn {
+    background: var(--panel);
+    border: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  .btn:active::after { opacity: 0.1; }
+
+  .btn-start {
+    color: var(--accent);
+    border-color: rgba(232,255,0,0.3);
+  }
+  .btn-start:hover {
+    background: rgba(232,255,0,0.07);
+    border-color: var(--accent);
+  }
+
+  .btn-lap {
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-lap:hover:not(:disabled) {
+    background: rgba(255,255,255,0.04);
+    color: var(--text);
+  }
+  .btn-lap:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-reset {
+    color: var(--accent2);
+    border-color: rgba(255,77,0,0.3);
+  }
+  .btn-reset:hover {
+    background: rgba(255,77,0,0.07);
+    border-color: var(--accent2);
+  }
+
+  /* Lap list */
+  .lap-panel {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .lap-panel:empty::after {
+    content: '— NO LAPS RECORDED —';
+    display: block;
+    text-align: center;
+    padding: 2rem;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+  }
+
+  .lap-panel::-webkit-scrollbar { width: 3px; }
+  .lap-panel::-webkit-scrollbar-track { background: transparent; }
+  .lap-panel::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .lap-item {
+    display: grid;
+    grid-template-columns: 3rem 1fr 1fr;
+    align-items: center;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    animation: slideIn 0.2s ease;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+  }
+  .lap-item:last-child { border-bottom: none; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .lap-num {
+    color: var(--muted);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+  }
+  .lap-split {
+    color: var(--text);
+    text-align: center;
+  }
+  .lap-total {
+    color: var(--muted);
+    text-align: right;
+    font-size: 0.7rem;
+  }
+  .lap-item.fastest .lap-split { color: var(--accent); }
+  .lap-item.slowest .lap-split { color: var(--accent2); }
+
+  /* Lap header */
+  .lap-header {
+    display: grid;
+    grid-template-columns: 3rem 1fr 1fr;
+    padding: 0.4rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+  }
+  .lap-header span {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 0.5rem;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .lap-header span:last-child { text-align: right; }
+  .lap-header span:nth-child(2) { text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <div class="label-tag">Precision Stopwatch</div>
+
+  <div class="display-panel">
+    <div class="indicator" id="indicator"></div>
+    <div class="time-display" id="timeDisplay">00:00:00</div>
+    <div class="ms-display" id="msDisplay">.000</div>
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-label">Laps</div>
+        <div class="stat-value" id="statLaps">0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Fastest</div>
+        <div class="stat-value" id="statFastest">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Slowest</div>
+        <div class="stat-value" id="statSlowest">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-start" id="btnStart" onclick="toggleStart()">START</button>
+    <button class="btn btn-lap" id="btnLap" onclick="recordLap()" disabled>LAP</button>
+    <button class="btn btn-reset" onclick="resetWatch()">RESET</button>
+  </div>
+
+  <div id="lapContainer" style="display:none;">
+    <div class="lap-header">
+      <span>#</span>
+      <span>Split</span>
+      <span>Total</span>
+    </div>
+    <div class="lap-panel" id="lapList"></div>
+  </div>
+</div>
+
+<script>
+  let startTime = 0;
+  let elapsed = 0;
+  let running = false;
+  let raf;
+  let laps = [];
+  let lastLapTime = 0;
+
+  const timeDisplay = document.getElementById('timeDisplay');
+  const msDisplay = document.getElementById('msDisplay');
+  const indicator = document.getElementById('indicator');
+  const btnStart = document.getElementById('btnStart');
+  const btnLap = document.getElementById('btnLap');
+  const lapList = document.getElementById('lapList');
+  const lapContainer = document.getElementById('lapContainer');
+
+  function pad(n, len = 2) { return String(Math.floor(n)).padStart(len, '0'); }
+
+  function formatTime(ms) {
+    const h = ms / 3600000;
+    const m = (ms % 3600000) / 60000;
+    const s = (ms % 60000) / 1000;
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  }
+
+  function formatMs(ms) {
+    return '.' + pad(ms % 1000, 3);
+  }
+
+  function formatSplit(ms) {
+    const m = (ms % 3600000) / 60000;
+    const s = (ms % 60000) / 1000;
+    return `${pad(m)}:${pad(s)}.${pad(ms % 1000, 3)}`;
+  }
+
+  function tick() {
+    elapsed = Date.now() - startTime;
+    timeDisplay.textContent = formatTime(elapsed);
+    msDisplay.textContent = formatMs(elapsed);
+    raf = requestAnimationFrame(tick);
+  }
+
+  function toggleStart() {
+    if (!running) {
+      startTime = Date.now() - elapsed;
+      running = true;
+      raf = requestAnimationFrame(tick);
+      btnStart.textContent = 'PAUSE';
+      btnStart.style.color = '#f0f0f0';
+      btnStart.style.borderColor = '#2a2a2a';
+      btnLap.disabled = false;
+      timeDisplay.classList.add('running');
+      msDisplay.classList.add('running');
+      indicator.classList.add('running');
+    } else {
+      running = false;
+      cancelAnimationFrame(raf);
+      btnStart.textContent = 'RESUME';
+      btnStart.style.color = 'var(--accent)';
+      btnStart.style.borderColor = 'rgba(232,255,0,0.3)';
+      btnLap.disabled = true;
+      timeDisplay.classList.remove('running');
+      msDisplay.classList.remove('running');
+      indicator.classList.remove('running');
+    }
+  }
+
+  function recordLap() {
+    if (!running) return;
+    const split = elapsed - lastLapTime;
+    lastLapTime = elapsed;
+    laps.unshift({ split, total: elapsed, num: laps.length + 1 });
+
+    lapContainer.style.display = 'block';
+    renderLaps();
+    updateStats();
+  }
+
+  function renderLaps() {
+    // Find fastest/slowest
+    const splits = laps.map(l => l.split);
+    const min = Math.min(...splits);
+    const max = Math.max(...splits);
+
+    lapList.innerHTML = laps.map((lap, i) => {
+      const isFastest = laps.length > 1 && lap.split === min;
+      const isSlowest = laps.length > 1 && lap.split === max;
+      const cls = isFastest ? 'fastest' : isSlowest ? 'slowest' : '';
+      return `<div class="lap-item ${cls}">
+        <span class="lap-num">L${String(lap.num).padStart(2,'0')}</span>
+        <span class="lap-split">${formatSplit(lap.split)}</span>
+        <span class="lap-total">${formatSplit(lap.total)}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function updateStats() {
+    document.getElementById('statLaps').textContent = laps.length;
+    if (laps.length > 0) {
+      const splits = laps.map(l => l.split);
+      document.getElementById('statFastest').textContent = formatSplit(Math.min(...splits));
+      document.getElementById('statSlowest').textContent = formatSplit(Math.max(...splits));
+    }
+  }
+
+  function resetWatch() {
+    running = false;
+    cancelAnimationFrame(raf);
+    elapsed = 0;
+    lastLapTime = 0;
+    laps = [];
+    timeDisplay.textContent = '00:00:00';
+    msDisplay.textContent = '.000';
+    btnStart.textContent = 'START';
+    btnStart.style.color = 'var(--accent)';
+    btnStart.style.borderColor = 'rgba(232,255,0,0.3)';
+    btnLap.disabled = true;
+    timeDisplay.classList.remove('running');
+    msDisplay.classList.remove('running');
+    indicator.classList.remove('running');
+    lapList.innerHTML = '';
+    lapContainer.style.display = 'none';
+    document.getElementById('statLaps').textContent = '0';
+    document.getElementById('statFastest').textContent = '—';
+    document.getElementById('statSlowest').textContent = '—';
+  }
+</script>
+</body>
+</html>
